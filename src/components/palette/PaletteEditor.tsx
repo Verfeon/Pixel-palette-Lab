@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Palette, Trash2, RotateCcw } from "lucide-react";
+import { ShadeGenerator } from "@/components/palette/ShadeGenerator";
 import { isValidHex, normalizeHex } from "@/lib/colorUtils";
 import { cn } from "@/lib/utils";
 
@@ -173,6 +174,9 @@ export function PaletteEditor() {
           <p className="text-center text-xs text-muted-foreground">
             {sortedColors.length} color{sortedColors.length !== 1 ? "s" : ""} · Click HEX to edit · Hover to reveal delete
           </p>
+
+          {/* Shade Generator */}
+          <ShadeGenerator />
         </>
       )}
     </div>

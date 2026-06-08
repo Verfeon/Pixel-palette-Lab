@@ -187,3 +187,145 @@ export function randomHex(): string {
   const b = Math.floor(Math.random() * 256);
   return rgbToHex(r, g, b);
 }
+
+// ─── Shade Generation ────────────────────────────────────────────────
+
+export interface ShadeParams {
+  /** Number of shadow steps (below base) */
+  shadowCount: number;
+  /** Number of highlight steps (above base) */
+  highlightCount: number;
+  /** Intensity multiplier on lightness deltas (0.1 - 2.0) */
+  intensity: number;
+  /** Shadow temperature: -1 (cool/blue) to 1 (warm/red), 0 = neutral */
+  shadowTemperature: number;
+  /** Highlight temperature: -1 (cool/blue) to 1 (warm/red), 0 = neutral */
+  highlightTemperature: number;
+}
+
+export interface ShadeResult {
+  hex: string;
+  label: string;
+  /** Positive = highlight, negative = shadow, 0 = base */
+  level: number;
+}
+
+const DEFAULT_SHADE_PARAMS: ShadeParams = {
+  shadowCount: 3,
+  highlightCount: 3,
+  intensity: 1.0,
+  shadowTemperature: -0.3,
+  highlightTemperature: 0.3,
+};
+
+/**
+ * Get default shade generation parameters.
+ */
+export function getDefaultShadeParams(): ShadeParams {
+  return { ...DEFAULT_SHADE_PARAMS };
+}
+
+/**
+ * Apply a temperature-based hue shift to a base hue.
+ * @param baseHue - Base hue in degrees (0-360)
+ * @param temperature - -1 (cool/blue) to 1 (warm/red)
+ * @param amount - How much shift to apply (0-1), proportional to lightness change
+ */
+function shiftHueByTemperature(baseHue: number, temperature: number, amount: number): number {
+  if (temperature === 0 || amount === 0) return baseHue;
+
+  // Target hues: warm ≈ 30° (orange-red), cool ≈ 210° (blue-cyan)
+  const warmTarget = 30;
+  const coolTarget = 210;
+
+  // Determine target based on temperature direction
+  const targetHue = temperature > 0 ? warmTarget : coolTarget;
+
+  // Calculate shortest path around the hue circle
+  let diff = targetHue - baseHue;
+  if (diff > 180) diff -= 360;
+  if (diff < -180) diff += 360;
+
+  // Apply shift proportional to amount and temperature magnitude
+  const shift = diff * Math.abs(temperature) * amount;
+
+  let newHue = baseHue + shift;
+  if (newHue < 0) newHue += 360;
+  if (newHue >= 360) newHue -= 360;
+
+  return Math.round(newHue);
+}
+
+/**
+ * Generate a full set of shades (shadows + highlights) from a base hex color.
+ *
+ * The base color is placed in the middle. Shadows descend in lightness
+ * with a hue shift toward cool/warm. Highlights ascend in lightness
+ * with a hue shift toward cool/warm.
+ *
+ * Returns an array of colors ordered from darkest shadow to brightest highlight.
+ */
+export function generateShades(
+  baseHex: string,
+  params: Partial<ShadeParams> = {}
+): ShadeResult[] {
+  const hsl = hexToHsl(baseHex);
+  if (!hsl) return [];
+
+  const {
+    shadowCount,
+    highlightCount,
+    intensity,
+    shadowTemperature,
+    highlightTemperature,
+  } = { ...DEFAULT_SHADE_PARAMS, ...params };
+
+  const results: ShadeResult[] = [];
+
+  // Generate shadows (descending from base)
+  for (let i = shadowCount; i >= 1; i--) {
+    const t = i / (shadowCount + 1); // 0..1, higher = darker
+    const lightnessDelta = hsl.l * t * intensity;
+
+    const newL = Math.max(0, Math.round(hsl.l - lightnessDelta));
+    const newH = shiftHueByTemperature(hsl.h, shadowTemperature, t);
+
+    // Reduce saturation slightly for darker shades
+    const newS = Math.max(0, hsl.s - Math.round(t * 15));
+
+    const hex = hslToHex(newH, newS, newL);
+    results.push({
+      hex,
+      label: `Shadow ${i}`,
+      level: -i,
+    });
+  }
+
+  // Base color
+  results.push({
+    hex: baseHex,
+    label: "Base",
+    level: 0,
+  });
+
+  // Generate highlights (ascending from base)
+  for (let i = 1; i <= highlightCount; i++) {
+    const t = i / (highlightCount + 1); // 0..1, higher = brighter
+    const lightnessDelta = (100 - hsl.l) * t * intensity;
+
+    const newL = Math.min(100, Math.round(hsl.l + lightnessDelta));
+    const newH = shiftHueByTemperature(hsl.h, highlightTemperature, t);
+
+    // Increase saturation slightly for brighter shades
+    const newS = Math.min(100, hsl.s + Math.round(t * 10));
+
+    const hex = hslToHex(newH, newS, newL);
+    results.push({
+      hex,
+      label: `Highlight ${i}`,
+      level: i,
+    });
+  }
+
+  return results;
+}

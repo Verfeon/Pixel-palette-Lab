@@ -79,6 +79,10 @@ export const usePaletteStore = create<PaletteState>()(
         set((state) => ({
           palettes: state.palettes.map((p) => {
             if (p.id !== paletteId) return p;
+            // Skip if this hex already exists in the palette
+            if (hex && p.colors.some((c) => c.hex.toLowerCase() === hex.toLowerCase())) {
+              return p;
+            }
             const maxOrder = p.colors.reduce(
               (max, c) => Math.max(max, c.order),
               -1
