@@ -329,3 +329,170 @@ export function generateShades(
 
   return results;
 }
+
+// ─── Palette Generation ──────────────────────────────────────────────
+
+export type PaletteStyle =
+  | "fantasy"
+  | "medieval"
+  | "forest"
+  | "desert"
+  | "tropical"
+  | "cyberpunk"
+  | "horror"
+  | "sci-fi"
+  | "retro-console"
+  | "game-boy"
+  | "pico8";
+
+export const PALETTE_STYLES: { value: PaletteStyle; label: string }[] = [
+  { value: "fantasy", label: "Fantasy" },
+  { value: "medieval", label: "Medieval" },
+  { value: "forest", label: "Forest" },
+  { value: "desert", label: "Desert" },
+  { value: "tropical", label: "Tropical" },
+  { value: "cyberpunk", label: "Cyberpunk" },
+  { value: "horror", label: "Horror" },
+  { value: "sci-fi", label: "Sci-Fi" },
+  { value: "retro-console", label: "Retro Console" },
+  { value: "game-boy", label: "Game Boy" },
+  { value: "pico8", label: "PICO-8 Inspired" },
+];
+
+interface StyleScheme {
+  /** Seed hues (0-360) that define the style's color range */
+  hues: number[];
+  /** Saturation range [min, max] */
+  saturation: [number, number];
+  /** Lightness range [min, max] */
+  lightness: [number, number];
+  /** Whether to keep saturation high */
+  vibrant: boolean;
+}
+
+const STYLE_SCHEMES: Record<PaletteStyle, StyleScheme> = {
+  fantasy: {
+    hues: [270, 300, 330, 45, 190],
+    saturation: [60, 90],
+    lightness: [30, 70],
+    vibrant: true,
+  },
+  medieval: {
+    hues: [30, 10, 0, 45, 120],
+    saturation: [30, 60],
+    lightness: [20, 55],
+    vibrant: false,
+  },
+  forest: {
+    hues: [90, 120, 150, 60, 30],
+    saturation: [40, 80],
+    lightness: [20, 50],
+    vibrant: false,
+  },
+  desert: {
+    hues: [30, 35, 20, 45, 10],
+    saturation: [40, 70],
+    lightness: [40, 75],
+    vibrant: false,
+  },
+  tropical: {
+    hues: [180, 190, 15, 60, 330],
+    saturation: [70, 95],
+    lightness: [40, 70],
+    vibrant: true,
+  },
+  cyberpunk: {
+    hues: [330, 300, 270, 190, 340],
+    saturation: [80, 100],
+    lightness: [30, 65],
+    vibrant: true,
+  },
+  horror: {
+    hues: [0, 350, 0, 0, 20],
+    saturation: [0, 30],
+    lightness: [5, 40],
+    vibrant: false,
+  },
+  "sci-fi": {
+    hues: [210, 190, 200, 220, 180],
+    saturation: [30, 70],
+    lightness: [30, 75],
+    vibrant: false,
+  },
+  "retro-console": {
+    hues: [0, 0, 0, 0, 30],
+    saturation: [0, 10],
+    lightness: [15, 80],
+    vibrant: false,
+  },
+  "game-boy": {
+    hues: [90, 100, 110, 120],
+    saturation: [30, 60],
+    lightness: [15, 65],
+    vibrant: false,
+  },
+  pico8: {
+    hues: [0, 30, 60, 120, 180, 210, 270, 330],
+    saturation: [40, 90],
+    lightness: [25, 75],
+    vibrant: true,
+  },
+};
+
+/**
+ * Generate a random number within a range.
+ */
+function randInRange(min: number, max: number): number {
+  return Math.random() * (max - min) + min;
+}
+
+/**
+ * Generate a random palette of coherent main colors.
+ * Spreads hues evenly across the wheel for maximum distinction.
+ */
+export function generateRandomPalette(colorCount: number): string[] {
+  const hueStep = 360 / colorCount;
+  const baseOffset = Math.floor(Math.random() * 360);
+  const results: string[] = [];
+
+  for (let i = 0; i < colorCount; i++) {
+    // Evenly spaced hues for distinct main colors
+    const h = (baseOffset + Math.round(hueStep * i) + Math.round(randInRange(-10, 10)) + 360) % 360;
+
+    // Moderate saturation for base colors
+    const s = Math.round(randInRange(45, 80));
+
+    // Mid-range lightness for good shade generation
+    const l = Math.round(randInRange(35, 65));
+
+    results.push(hslToHex(Math.round(h), s, l));
+  }
+
+  return results;
+}
+
+/**
+ * Generate main colors based on a named style.
+ * Picks distinct hues from the style's scheme for each main color.
+ */
+export function generateStylePalette(style: PaletteStyle, colorCount: number): string[] {
+  const scheme = STYLE_SCHEMES[style];
+  const results: string[] = [];
+
+  // Pick evenly from available hues
+  const availableHues = [...scheme.hues];
+  for (let i = 0; i < colorCount; i++) {
+    // Cycle through style hues if we need more colors than available
+    const hueIndex = i % availableHues.length;
+    const baseHue = availableHues[hueIndex];
+    const hueVariance = randInRange(-12, 12);
+    const h = (baseHue + hueVariance + 360) % 360;
+
+    const s = Math.round(randInRange(scheme.saturation[0], scheme.saturation[1]));
+    const l = Math.round(randInRange(scheme.lightness[0], scheme.lightness[1]));
+
+    results.push(hslToHex(Math.round(h), s, l));
+  }
+
+  return results;
+}

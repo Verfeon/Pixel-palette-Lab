@@ -25,56 +25,55 @@ import { WandSparkles, Plus } from "lucide-react";
 
 export function ShadeGenerator() {
   const activePalette = usePaletteStore((s) => s.getActivePalette());
-  const addColor = usePaletteStore((s) => s.addColor);
+  const activePaletteId = usePaletteStore((s) => s.activePaletteId);
+  const replaceShades = usePaletteStore((s) => s.replaceShades);
 
   const [baseColorId, setBaseColorId] = useState<string>("");
   const [params, setParams] = useState<ShadeParams>(getDefaultShadeParams());
 
-  const sortedColors = useMemo(
+  // Derive main colors and shades reactively from the store
+  const mainColors = useMemo(
     () =>
       activePalette
-        ? [...activePalette.colors].sort((a, b) => a.order - b.order)
+        ? activePalette.colors
+            .filter((c) => c.kind === "main")
+            .sort((a, b) => a.order - b.order)
         : [],
     [activePalette]
   );
 
-  const baseHex = useMemo(() => {
-    if (!baseColorId) return sortedColors[0]?.hex ?? "";
-    return sortedColors.find((c) => c.id === baseColorId)?.hex ?? "";
-  }, [baseColorId, sortedColors]);
+  const existingShades = useMemo(
+    () =>
+      activePalette && baseColorId
+        ? activePalette.colors
+            .filter((c) => c.mainColorId === baseColorId)
+            .sort((a, b) => a.order - b.order)
+        : [],
+    [activePalette, baseColorId]
+  );
 
-  // Auto-select first color if none selected and colors exist
-  if (!baseColorId && sortedColors.length > 0 && sortedColors[0].id !== baseColorId) {
-    setBaseColorId(sortedColors[0].id);
+  // Auto-select first main color if none selected
+  if (!baseColorId && mainColors.length > 0) {
+    setBaseColorId(mainColors[0].id);
   }
+
+  const baseHex = useMemo(
+    () => mainColors.find((c) => c.id === baseColorId)?.hex ?? "",
+    [baseColorId, mainColors]
+  );
 
   const shades = useMemo(
     () => (baseHex ? generateShades(baseHex, params) : []),
     [baseHex, params]
   );
 
-  // Only count non-base shades, exclude ones already in the palette
-  const newShades = useMemo(
-    () =>
-      shades.filter((s, i) => {
-        if (i === params.shadowCount) return false; // skip base
-        return !sortedColors.some(
-          (c) => c.hex.toLowerCase() === s.hex.toLowerCase()
-        );
-      }),
-    [shades, sortedColors, params.shadowCount]
-  );
-
   const handleApply = useCallback(() => {
-    if (!activePalette) return;
-    // Skip the base color (index = shadowCount)
-    const skipIndex = params.shadowCount;
-    shades.forEach((shade, i) => {
-      if (i !== skipIndex) {
-        addColor(activePalette.id, shade.hex);
-      }
-    });
-  }, [activePalette, shades, params.shadowCount, addColor]);
+    if (!activePaletteId || !baseColorId) return;
+    const shadeHexes = shades
+      .filter((_s, i) => i !== params.shadowCount) // skip base color itself
+      .map((s) => s.hex);
+    replaceShades(activePaletteId, baseColorId, shadeHexes);
+  }, [activePaletteId, baseColorId, shades, params.shadowCount, replaceShades]);
 
   const handleShadowCountChange = useCallback((value: number[]) => {
     setParams((prev) => ({ ...prev, shadowCount: value[0] }));
@@ -96,12 +95,12 @@ export function ShadeGenerator() {
     setParams((prev) => ({ ...prev, highlightTemperature: value[0] }));
   }, []);
 
-  if (sortedColors.length === 0) {
+  if (mainColors.length === 0) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
           <WandSparkles className="h-8 w-8" />
-          <p className="text-sm">Add some colors first to generate shades</p>
+          <p className="text-sm">Add main colors first to generate shades</p>
         </CardContent>
       </Card>
     );
@@ -114,17 +113,22 @@ export function ShadeGenerator() {
           <WandSparkles className="h-4 w-4" />
           Shade Generator
         </CardTitle>
+        {baseColorId && existingShades.length > 0 && (
+          <span className="text-xs text-muted-foreground">
+            {existingShades.length} shade{existingShades.length !== 1 ? "s" : ""}
+          </span>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Base color selector */}
+        {/* Base color selector — only main colors */}
         <div className="space-y-2">
-          <Label>Base Color</Label>
+          <Label>Base Color (Main)</Label>
           <Select value={baseColorId} onValueChange={setBaseColorId}>
             <SelectTrigger>
-              <SelectValue placeholder="Select a base color" />
+              <SelectValue placeholder="Select a main color" />
             </SelectTrigger>
             <SelectContent>
-              {sortedColors.map((c) => (
+              {mainColors.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   <div className="flex items-center gap-2">
                     <div
@@ -148,6 +152,25 @@ export function ShadeGenerator() {
             />
             <span className="font-mono text-sm">{baseHex}</span>
             <span className="text-xs text-muted-foreground">(base)</span>
+          </div>
+        )}
+
+        {/* Existing shades preview */}
+        {existingShades.length > 0 && (
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">
+              Current shades (will be replaced)
+            </Label>
+            <div className="flex h-6 rounded overflow-hidden border">
+              {existingShades.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex-1"
+                  style={{ backgroundColor: s.hex }}
+                  title={s.hex}
+                />
+              ))}
+            </div>
           </div>
         )}
 
@@ -246,7 +269,6 @@ export function ShadeGenerator() {
                 </div>
               ))}
             </div>
-            {/* Labels */}
             <div className="flex text-[10px] text-muted-foreground">
               {shades.map((s, i) => (
                 <div key={i} className="flex-1 text-center truncate">
@@ -257,17 +279,18 @@ export function ShadeGenerator() {
           </div>
         )}
 
-        {/* Apply button */}
-        <Button
-          className="w-full"
-          onClick={handleApply}
-          disabled={newShades.length === 0}
-        >
+        {/* Apply button — replaces shades for this main color */}
+        <Button className="w-full" onClick={handleApply}>
           <Plus className="mr-2 h-4 w-4" />
-          {newShades.length > 0
-            ? `Add ${newShades.length} New Shade${newShades.length !== 1 ? "s" : ""} to Palette`
-            : "All shades already in palette"}
+          {existingShades.length > 0
+            ? `Replace ${existingShades.length} Shade${existingShades.length !== 1 ? "s" : ""}`
+            : `Generate ${shades.length - 1} Shade${shades.length - 1 !== 1 ? "s" : ""}`}
         </Button>
+        {existingShades.length > 0 && (
+          <p className="text-center text-[11px] text-muted-foreground">
+            Previous shades for this main color will be replaced
+          </p>
+        )}
       </CardContent>
     </Card>
   );

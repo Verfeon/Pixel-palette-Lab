@@ -4,14 +4,15 @@ import { ColorSwatch } from "@/components/palette/ColorSwatch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Palette, Trash2, RotateCcw } from "lucide-react";
+import { Plus, Palette, Trash2, RotateCcw, ChevronDown, ChevronRight } from "lucide-react";
 import { ShadeGenerator } from "@/components/palette/ShadeGenerator";
+import { PaletteGenerator } from "@/components/palette/PaletteGenerator";
 import { isValidHex, normalizeHex } from "@/lib/colorUtils";
 import { cn } from "@/lib/utils";
 
 export function PaletteEditor() {
   const activePalette = usePaletteStore((s) => s.getActivePalette());
-  const addColor = usePaletteStore((s) => s.addColor);
+  const addMainColor = usePaletteStore((s) => s.addMainColor);
   const updateColor = usePaletteStore((s) => s.updateColor);
   const removeColor = usePaletteStore((s) => s.removeColor);
   const renamePalette = usePaletteStore((s) => s.renamePalette);
@@ -53,9 +54,9 @@ export function PaletteEditor() {
 
   const handleAddColor = useCallback(() => {
     if (activePaletteId) {
-      addColor(activePaletteId);
+      addMainColor(activePaletteId);
     }
-  }, [activePaletteId, addColor]);
+  }, [activePaletteId, addMainColor]);
 
   const handleDeletePalette = useCallback(() => {
     if (activePaletteId) {
@@ -70,6 +71,22 @@ export function PaletteEditor() {
   const sortedColors = activePalette
     ? [...activePalette.colors].sort((a, b) => a.order - b.order)
     : [];
+
+  const mainColors = sortedColors.filter((c) => c.kind === "main");
+
+  // Track expanded/collapsed state for each main color's shades
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const isExpanded = (id: string) => expandedIds.has(id);
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
@@ -140,6 +157,48 @@ export function PaletteEditor() {
             </CardContent>
           </Card>
 
+          {/* Palette Preview — one row per main color with its shades */}
+          {mainColors.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">
+                  Palette Preview
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5">
+                {mainColors.map((mainColor) => {
+                  const shades = sortedColors.filter(
+                    (c) => c.mainColorId === mainColor.id
+                  );
+                  const mid = Math.ceil(shades.length / 2);
+                  // Row: first half of shades | main | second half of shades
+                  const row = [
+                    ...shades.slice(0, mid),
+                    mainColor,
+                    ...shades.slice(mid),
+                  ];
+
+                  return (
+                    <div key={mainColor.id} className="flex h-8 rounded-md overflow-hidden border">
+                      {row.map((c) => (
+                        <div
+                          key={c.id}
+                          className="flex-1 flex items-center justify-center relative group cursor-default"
+                          style={{ backgroundColor: c.hex }}
+                          title={`${c.hex}${c.kind === "main" ? " (main)" : ""}`}
+                        >
+                          <span className="text-[9px] font-mono bg-background/50 text-foreground px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity truncate max-w-[5rem]">
+                            {c.hex}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Color list */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -158,14 +217,73 @@ export function PaletteEditor() {
                   <p>No colors yet. Click "Add Color" to get started.</p>
                 </div>
               ) : (
-                sortedColors.map((color) => (
-                  <ColorSwatch
-                    key={color.id}
-                    hex={color.hex}
-                    onDelete={() => removeColor(activePalette.id, color.id)}
-                    onChange={(hex) => handleColorChange(color.id, hex)}
-                  />
-                ))
+                <>
+                  {/* Main colors, each followed by its shades */}
+                  {mainColors.map((mainColor) => {
+                    const shades = sortedColors.filter(
+                      (c) => c.mainColorId === mainColor.id
+                    );
+                    const expanded = isExpanded(mainColor.id);
+
+                    return (
+                      <div key={mainColor.id} className="space-y-1">
+                        {/* Main color */}
+                        <ColorSwatch
+                          hex={mainColor.hex}
+                          kind="main"
+                          onDelete={() => removeColor(activePalette.id, mainColor.id)}
+                          onChange={(hex) => handleColorChange(mainColor.id, hex)}
+                        />
+
+                        {/* Shades toggle */}
+                        {shades.length > 0 && (
+                          <button
+                            onClick={() => toggleExpanded(mainColor.id)}
+                            className="flex items-center gap-1 pl-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {expanded ? (
+                              <ChevronDown className="h-3 w-3" />
+                            ) : (
+                              <ChevronRight className="h-3 w-3" />
+                            )}
+                            {shades.length} shade{shades.length !== 1 ? "s" : ""}
+                          </button>
+                        )}
+
+                        {/* Shades (collapsible) */}
+                        {expanded &&
+                          shades.map((shade) => (
+                            <div key={shade.id} className="pl-4 border-l-2 border-muted">
+                              <ColorSwatch
+                                hex={shade.hex}
+                                kind="shade"
+                                onDelete={() => removeColor(activePalette.id, shade.id)}
+                                onChange={(hex) => handleColorChange(shade.id, hex)}
+                              />
+                            </div>
+                          ))}
+                      </div>
+                    );
+                  })}
+
+                  {/* Orphaned shade colors (safety net in case kind/mainColorId is missing) */}
+                  {sortedColors
+                    .filter(
+                      (c) =>
+                        c.kind !== "main" &&
+                        c.mainColorId &&
+                        !mainColors.some((m) => m.id === c.mainColorId)
+                    )
+                    .map((color) => (
+                      <ColorSwatch
+                        key={color.id}
+                        hex={color.hex}
+                        kind="shade"
+                        onDelete={() => removeColor(activePalette.id, color.id)}
+                        onChange={(hex) => handleColorChange(color.id, hex)}
+                      />
+                    ))}
+                </>
               )}
             </CardContent>
           </Card>
@@ -177,6 +295,9 @@ export function PaletteEditor() {
 
           {/* Shade Generator */}
           <ShadeGenerator />
+
+          {/* Palette Generator */}
+          <PaletteGenerator />
         </>
       )}
     </div>
