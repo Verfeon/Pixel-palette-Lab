@@ -1,0 +1,21 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "description": "Run build before git commit/push and block if it fails",
+        "command": "pwsh -File .github/scripts/pre-commit-build.ps1",
+        "windows": {
+          "command": "powershell -File .github/scripts/pre-commit-build.ps1"
+        },
+        "linux": {
+          "command": "pwsh -File .github/scripts/pre-commit-build.ps1"
+        },
+        "osx": {
+          "command": "pwsh -File .github/scripts/pre-commit-build.ps1"
+        },
+        "timeout": 60
+      }
+    ]
+  }
+}
