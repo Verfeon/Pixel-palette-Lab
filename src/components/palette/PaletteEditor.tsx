@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Palette, Trash2, RotateCcw, ChevronDown, ChevronRight } from "lucide-react";
 import { ShadeGenerator } from "@/components/palette/ShadeGenerator";
 import { PaletteGenerator } from "@/components/palette/PaletteGenerator";
+import { ImportExportPanel } from "@/components/palette/ImportExportPanel";
 import { isValidHex, normalizeHex } from "@/lib/colorUtils";
 import { cn } from "@/lib/utils";
 
@@ -298,7 +299,8 @@ export function PaletteEditor() {
 
           {/* Palette Generator */}
           <PaletteGenerator />
-        </>
+          {/* Import / Export */}
+          <ImportExportPanel />        </>
       )}
     </div>
   );
