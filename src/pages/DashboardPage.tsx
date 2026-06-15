@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { usePaletteStore } from "@/stores/paletteStore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Palette, ExternalLink, Trash2 } from "lucide-react";
+import { Plus, Palette, ExternalLink, Trash2, ImageUp } from "lucide-react";
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -33,10 +33,16 @@ export function DashboardPage() {
             Create, analyze, and export color palettes for pixel art
           </p>
         </div>
-        <Button onClick={handleCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Palette
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate("/analyze")}>
+            <ImageUp className="mr-2 h-4 w-4" />
+            Extract from Image
+          </Button>
+          <Button onClick={handleCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Palette
+          </Button>
+        </div>
       </div>
 
       {sorted.length === 0 ? (

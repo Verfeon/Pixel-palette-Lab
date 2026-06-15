@@ -21,7 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { WandSparkles, Plus } from "lucide-react";
+import { WandSparkles, Plus, Layers } from "lucide-react";
 
 export function ShadeGenerator() {
   const activePalette = usePaletteStore((s) => s.getActivePalette());
@@ -74,6 +74,17 @@ export function ShadeGenerator() {
       .map((s) => s.hex);
     replaceShades(activePaletteId, baseColorId, shadeHexes);
   }, [activePaletteId, baseColorId, shades, params.shadowCount, replaceShades]);
+
+  const handleApplyAll = useCallback(() => {
+    if (!activePaletteId || mainColors.length === 0) return;
+    for (const mainColor of mainColors) {
+      const generated = generateShades(mainColor.hex, params);
+      const shadeHexes = generated
+        .filter((_s, i) => i !== params.shadowCount)
+        .map((s) => s.hex);
+      replaceShades(activePaletteId, mainColor.id, shadeHexes);
+    }
+  }, [activePaletteId, mainColors, params, replaceShades]);
 
   const handleShadowCountChange = useCallback((value: number[]) => {
     setParams((prev) => ({ ...prev, shadowCount: value[0] }));
@@ -290,6 +301,33 @@ export function ShadeGenerator() {
           <p className="text-center text-[11px] text-muted-foreground">
             Previous shades for this main color will be replaced
           </p>
+        )}
+
+        {/* Apply to all main colors */}
+        {mainColors.length > 1 && (
+          <>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">or</span>
+              </div>
+            </div>
+            <Button variant="secondary" className="w-full" onClick={handleApplyAll}>
+              <Layers className="mr-2 h-4 w-4" />
+              Apply to All {mainColors.length} Main Colors
+            </Button>
+            {mainColors.some(
+              (mc) =>
+                activePalette &&
+                activePalette.colors.some((c) => c.mainColorId === mc.id)
+            ) && (
+              <p className="text-center text-[11px] text-muted-foreground">
+                Existing shades on all main colors will be replaced
+              </p>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

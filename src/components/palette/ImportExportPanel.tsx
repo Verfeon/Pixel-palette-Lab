@@ -52,6 +52,7 @@ export function ImportExportPanel() {
   const [importMode, setImportMode] = useState<"json" | "png" | "custom">("json");
   const [customText, setCustomText] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const [pngImporting, setPngImporting] = useState(false);
   const [pngMaxColors, setPngMaxColors] = useState(8);
   const [pngTolerance, setPngTolerance] = useState(30);
@@ -186,17 +187,27 @@ export function ImportExportPanel() {
   }, [customText, activePalette, addMainColor, createPalette]);
 
   /** Import a flat list of hexes as main colors (PNG, custom palette). */
+  const showImportSuccess = useCallback((msg: string) => {
+    setImportSuccess(msg);
+    setTimeout(() => setImportSuccess(null), 3000);
+  }, []);
+
   const applyImportedFlatHexes = useCallback(
     (hexes: string[], name?: string) => {
       let paletteId = activePalette?.id;
-      if (!paletteId) {
-        paletteId = createPalette(name);
+      let created = false;
+      if (!paletteId || (activePalette && activePalette.colors.length > 0)) {
+        paletteId = createPalette(name ?? `Imported ${Date.now().toString(36).slice(-4)}`);
+        created = true;
       }
       hexes.forEach((hex) => {
         addMainColor(paletteId!, hex);
       });
+      if (created) {
+        showImportSuccess(`Created new palette with ${hexes.length} colors`);
+      }
     },
-    [activePalette, createPalette, addMainColor]
+    [activePalette, createPalette, addMainColor, showImportSuccess]
   );
 
   /**
@@ -210,8 +221,10 @@ export function ImportExportPanel() {
   const applyImportedColors = useCallback(
     (colors: ImportedColorEntry[], name?: string) => {
       let paletteId = activePalette?.id;
-      if (!paletteId) {
-        paletteId = createPalette(name);
+      let created = false;
+      if (!paletteId || (activePalette && activePalette.colors.length > 0)) {
+        paletteId = createPalette(name ?? `Imported ${Date.now().toString(36).slice(-4)}`);
+        created = true;
       }
 
       // Step 1: add all main colors
@@ -234,8 +247,12 @@ export function ImportExportPanel() {
           replaceShades(paletteId!, mainColor.id, entry.shades);
         }
       }
+
+      if (created) {
+        showImportSuccess(`Created new palette with ${colors.length} colors`);
+      }
     },
-    [activePalette, createPalette, addMainColor, replaceShades]
+    [activePalette, createPalette, addMainColor, replaceShades, showImportSuccess]
   );
 
   // Regenerate export text when format or activePalette changes
@@ -502,9 +519,12 @@ export function ImportExportPanel() {
               </div>
             )}
 
-            {/* Import error */}
+            {/* Import error */}{" "}
             {importError && (
               <p className="text-sm text-destructive">{importError}</p>
+            )}
+            {importSuccess && (
+              <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">{importSuccess}</p>
             )}
           </TabsContent>
         </Tabs>
