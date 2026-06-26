@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { usePaletteStore } from "@/stores/paletteStore";
 import { PaletteEditor } from "@/components/palette/PaletteEditor";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Eye } from "lucide-react";
 
 export function EditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -39,10 +39,16 @@ export function EditorPage() {
 
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-6">
-      <Button variant="ghost" onClick={() => navigate("/")} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Dashboard
-      </Button>
+      <div className="mb-4 flex items-center justify-between">
+        <Button variant="ghost" onClick={() => navigate("/")}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Dashboard
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => navigate("/preview")}>
+          <Eye className="mr-2 h-4 w-4" />
+          Sprite Preview
+        </Button>
+      </div>
       <PaletteEditor />
     </div>
   );

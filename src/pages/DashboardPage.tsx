@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { usePaletteStore } from "@/stores/paletteStore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Palette, ExternalLink, Trash2, ImageUp } from "lucide-react";
+import { Plus, Palette, ExternalLink, Trash2, ImageUp, Eye } from "lucide-react";
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -34,6 +34,10 @@ export function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate("/preview")}>
+            <Eye className="mr-2 h-4 w-4" />
+            Sprite Preview
+          </Button>
           <Button variant="outline" onClick={() => navigate("/analyze")}>
             <ImageUp className="mr-2 h-4 w-4" />
             Extract from Image
